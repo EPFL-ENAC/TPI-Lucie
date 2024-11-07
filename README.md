@@ -18,3 +18,5 @@ Avant d'utiliser ces playbooks, assurez-vous que vous avez les éléments suivan
    ```bash
    git clone https://github.com/votre-utilisateur/playbooks-ansible.git
    cd playbooks-ansible
+## Lancer un playbook
+Pour lancer un playbook, il vous faut utiliser la commande ansible-playbook -i inventory.ini nom_playbook.yml
