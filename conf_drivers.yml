@@ -1,52 +1,51 @@
----
 - name: Réinstaller les drivers Nvidia et CUDA
-  hosts: serveurs
-  become: yes  # Utilise sudo pour les actions nécessitant des privilèges root
+  hosts: serveurs  # Indique que le playbook doit être exécuté sur le groupe 'serveurs' (cible dans l'inventaire Ansible)
+  become: yes  # Permet d'exécuter les tâches avec des privilèges administratifs (sudo)
+  gather_facts: yes  # Récupère des informations sur le système des serveurs cibles (comme la version d'Ubuntu)
+
   tasks:
-    # 1. Supprimer les drivers Nvidia existants
+    # Vérification de la version d'Ubuntu du serveur cible
+    - name: Vérifier la version d'Ubuntu
+      debug:
+        msg: "Version d'Ubuntu: {{ ansible_facts['distribution_version'] }}"  # Affiche la version d'Ubuntu détectée par Ansible
+
+    # 1. Supprimer les pilotes Nvidia existants
     - name: Supprimer les pilotes Nvidia existants
       apt:
-        name: nvidia-driver-535
-        state: absent
+        name: nvidia-driver-535  # Supprime le paquet des pilotes NVIDIA version 535 (si déjà installé)
+        state: absent  # Assure que le paquet est supprimé du système
 
-    # 2. Ajouter le paquet CUDA
-    - name: Installer le paquet CUDA
-      apt:
-        name: nvidia-cuda-toolkit
-        state: present
-
-    # 3. Mettre à jour le cache des paquets
+    # 3. Mise à jour du cache des paquets APT
     - name: Mettre à jour le cache APT
       apt: 
-        update_cache: yes 
+        update_cache: yes  # Met à jour le cache des paquets APT pour que le gestionnaire de paquets soit au courant des versions les plus récentes des paquets disponibles
 
-    # 4. Réinstaller les drivers Nvidia
-    - name: Réinstaller les drivers Nvidia et CUDA
-      apt: 
-        name: nvidia-driver-550
-        state: latest
+    # Installation des pilotes NVIDIA et CUDA pour Ubuntu 22.04
+    - name: Installer le pilote NVIDIA et CUDA pour Ubuntu 22.04
+      apt:
+        name:
+          - nvidia-driver-525  # Installe le pilote NVIDIA version 525, compatible avec Ubuntu 22.04
+          - cuda-toolkit-11-7  # Installe le toolkit CUDA version 11.7, compatible avec Ubuntu 22.04
+        state: present  # Assure que ces paquets sont installés sur la machine
+      when: ansible_facts['distribution_version'] == "22.04"  # Condition : cette tâche s'exécute uniquement si la version d'Ubuntu est 22.04
 
-    # 5. Vérifier l'installation des drivers Nvidia avec nvidia-smi
+    # Installation des pilotes NVIDIA et CUDA pour Ubuntu 24.04
+    - name: Installer le pilote NVIDIA et CUDA pour Ubuntu 24.04
+      apt:
+        name:
+          - nvidia-driver-530  # Installe le pilote NVIDIA version 530, compatible avec Ubuntu 24.04
+          - cuda-toolkit-12-0  # Installe le toolkit CUDA version 12.0, compatible avec Ubuntu 24.04
+        state: present  # Assure que ces paquets sont installés sur la machine
+      when: ansible_facts['distribution_version'] == "24.04"  # Condition : cette tâche s'exécute uniquement si la version d'Ubuntu est 24.04
+
+    # 5. Vérification de l'installation des drivers Nvidia en exécutant nvidia-smi
     - name: Vérifier l'installation de Nvidia
-      command: nvidia-smi
-      register: nvidia_driver
-      ignore_errors: yes
+      command: nvidia-smi  # Exécute la commande nvidia-smi, utilisée pour vérifier la présence des pilotes NVIDIA et leur bon fonctionnement
+      register: nvidia_driver  # Enregistre la sortie de la commande dans la variable 'nvidia_driver'
+      ignore_errors: yes  # Ignore les erreurs afin que le playbook puisse continuer même si la commande échoue
 
+    # Si nvidia-smi a fonctionné, affiche un message de succès
     - name: Vérifier l'installation des drivers 
       debug: 
-        msg: "Les pilotes NVIDIA sont installés et fonctionnent correctement"
-      when: nvidia_driver.rc == 0
-
-    - name: Afficher un message d'erreur si les drivers NVIDIA ne sont pas trouvés
-      debug:
-        msg: "Nvidia-smi n'est pas installé ou la commande a échoué."
-      when: nvidia_driver.rc != 0
-
-    # Afficher la sortie de nvidia-smi
-    - name: Afficher la sortie de nvidia-smi
-      command: nvidia-smi
-      register: nvidia_output
-
-    - name: Afficher la sortie de nvidia-smi
-      debug:  # Affiche le contenu de nvidia_output.stdout qui contient la sortie standard de la commande
-        var: nvidia_output.stdout
+        msg: "Les pilotes NVIDIA sont installés et fonctionnent correctement"  # Affiche un message indiquant que les pilotes NVIDIA sont installés et fonctionnent correctement
+      when: nvidia_driver.rc == 0  # Condition : cette tâche s'exécute uniquement s

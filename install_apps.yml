@@ -1,107 +1,104 @@
 ---
 - name: Installer Teams sur les machines
-  hosts: serveurs
-  become: yes #Utilise sudo pour les actions nécessitant des privilèges root
-  vars:
-   deb_file: "/home/lucie/src/tpi-lucie/livenavigatormodule-dkms_16_all.deb"  # Remplacez ce chemin par le chemin réel du fichier .deb sur la machine locale
-   remote_path: "/tmp/lina.deb"  # Chemin où le fichier sera copié sur le serveur cible
+  hosts: serveurs  # Spécifie que les tâches doivent être exécutées sur les hôtes définis dans le groupe "serveurs" de votre inventaire.
+  become: yes  # Utilise des privilèges sudo pour exécuter des tâches nécessitant des droits d'administrateur (root).
 
-  tasks: #les tâches que le playbook va éxecuter
+  vars:  # Définit les variables utilisées dans le playbook.
+    deb_file: "/home/lucie/src/tpi-lucie/livenavigatormodule-dkms_16_all.deb"  # Chemin local vers le fichier .deb à installer (sur la machine de l'admin).
+    remote_path: "/tmp/lina.deb"  # Le chemin où le fichier .deb sera copié sur la machine cible (serveur).
+
+  tasks:  # Liste des tâches qui seront exécutées sur les hôtes cibles.
+
     - name: Mettre à jour les paquets
       apt:
-        update_cache: yes
+        update_cache: yes  # Met à jour le cache des paquets sur les machines cibles pour s'assurer que les dernières versions des paquets sont utilisées.
 
-#Teams
-    
+# Partie Teams
     - name: Installer les dépendances requises
       apt:
-       name: 
-          - wget
-          - gpg
-       state: present
+        name: 
+          - wget  # Outil pour télécharger des fichiers depuis des URL.
+          - gpg  # Outil pour gérer les clés GPG utilisées pour vérifier les paquets et les sources.
+        state: present  # S'assure que les paquets sont installés sur la machine cible.
 
     - name: Assurer que Snap est installé
       package:
-        name: snapd
-        state: present
+        name: snapd  # Installe le package snapd, qui permet d'utiliser Snap (gestionnaire de paquets universel).
+        state: present  # Vérifie si snapd est déjà installé, et l'installe si nécessaire.
 
     - name: Installer Teams avec Snap
       snap:
-        name: teams-for-linux
-        state: present
-        
+        name: teams-for-linux  # Installe l'application Microsoft Teams via le gestionnaire de paquets Snap.
+        state: present  # Assure que Microsoft Teams est installé sur la machine cible.
 
-#Cisco anyconnect
-    - name: Installer les dépendances requises
+# Partie Cisco AnyConnect
+    - name: Installer les dépendances requises pour Cisco AnyConnect
       apt:
         name:
-          - openconnect
-          - network-manager-openconnect
-          - network-manager-openconnect-gnome
-        state: present
+          - openconnect  # Client VPN compatible avec Cisco AnyConnect.
+          - network-manager-openconnect  # Plugin pour NetworkManager pour gérer la connexion VPN.
+          - network-manager-openconnect-gnome  # Interface graphique pour NetworkManager sur GNOME.
+        state: present  # S'assure que ces paquets nécessaires sont installés.
 
     - name: Copier le fichier d'installation de Cisco AnyConnect
       copy:
-        src: /home/lucie/src/tpi-lucie/cisco-secure-client-linux64-5.1.5.65-core-vpn-webdeploy-k9.sh 
-        dest: /tmp/anyconnect-install.sh
-        mode: '0755'  # Rendre le fichier exécutable
+        src: /home/lucie/src/tpi-lucie/cisco-secure-client-linux64-5.1.5.65-core-vpn-webdeploy-k9.sh  # Copie le script d'installation local vers le serveur cible.
+        dest: /tmp/anyconnect-install.sh  # Destination sur la machine cible.
+        mode: '0755'  # Donne des permissions d'exécution au fichier (le script peut être exécuté).
 
     - name: Exécuter le script d'installation de Cisco AnyConnect
-      command: /tmp/anyconnect-install.sh
+      command: /tmp/anyconnect-install.sh  # Exécute le script d'installation de Cisco AnyConnect.
       args:
-        executable: /bin/bash
-      ignore_errors: yes
-   
-   #Atempo Lina
-    - name: Installer les dépendances requises
+        executable: /bin/bash  # Spécifie que le script doit être exécuté avec bash.
+      ignore_errors: yes  # Ignore les erreurs dans l'exécution de cette tâche, au cas où l'installation échoue, mais continue l'exécution des autres tâches.
+
+# Partie Atempo Lina
+    - name: Installer les dépendances requises pour Atempo Lina
       apt:
         name:
-          - unzip
-          - wget
-          - gpg
-        state: present
-  
+          - unzip  # Outil pour décompresser les fichiers ZIP.
+          - wget  # Outil pour télécharger des fichiers depuis des URL.
+          - gpg  # Outil pour gérer les clés GPG (probablement pour vérifier l'intégrité des fichiers).
+        state: present  # Assure que les paquets nécessaires sont installés.
+
     - name: Copier le fichier .deb sur le serveur cible
       copy:
-        src: "{{ deb_file }}"
-        dest: "{{ remote_path }}"
-        mode: '0644'
+        src: "{{ deb_file }}"  # Copie le fichier .deb défini par la variable `deb_file` depuis la machine locale.
+        dest: "{{ remote_path }}"  # Destination sur le serveur cible, définie par la variable `remote_path`.
+        mode: '0644'  # Donne des permissions en lecture/écriture pour l'utilisateur et en lecture pour les autres.
 
     - name: Installer le paquet Lina à partir du fichier .deb
       command:
-        cmd: dpkg -i {{ remote_path }}
+        cmd: dpkg -i {{ remote_path }}  # Utilise dpkg pour installer le paquet .deb sur la machine cible.
 
     - name: Résoudre les dépendances manquantes
       apt:
-        deb: "{{ remote_path }}"
-        state: present
-        update_cache: yes
+        deb: "{{ remote_path }}"  # Utilise apt pour installer les dépendances manquantes du paquet Lina, si nécessaire.
+        state: present  # S'assure que les dépendances sont installées.
+        update_cache: yes  # Met à jour le cache des paquets après l'installation des dépendances.
 
-  #Enacdrive
-    - name: Ajout clef GPG
+# Partie Enacdrive
+    - name: Ajout clef GPG pour Enacdrive
       ansible.builtin.apt_key:
-        url: https://enacrepo.epfl.ch/enacrepo.asc
-        state: present
+        url: https://enacrepo.epfl.ch/enacrepo.asc  # Ajoute la clé GPG pour vérifier les paquets du dépôt Enacdrive.
+        state: present  # S'assure que la clé GPG est présente dans la machine cible.
 
     - name: Ajout du repo Enacdrive dans les sources apt
       ansible.builtin.apt_repository: 
-        repo: deb http://enacrepo.epfl.ch/public focal main
-        state: present
-    
+        repo: deb http://enacrepo.epfl.ch/public focal main  # Ajoute le dépôt Enacdrive à la liste des sources apt.
+        state: present  # S'assure que le dépôt est bien ajouté.
+
     - name: Installation de Enacdrive
       ansible.builtin.apt:
-        name: enacdrives    
+        name: enacdrives  # Installe le paquet Enacdrive depuis le dépôt ajouté précédemment.
 
-    
-  #Paquets Debian
+# Installation de paquets Debian généraux
     - name: Installer les paquets de base
       apt:
         name:
-          - gparted
-          - vim
-          - unzip
-          - htop
-          - firefox
-        state: present
-
-
+          - gparted  # Outil de partitionnement de disque.
+          - vim  # Éditeur de texte léger.
+          - unzip  # Outil pour décompresser des fichiers ZIP.
+          - htop  # Outil pour surveiller les processus système.
+          - firefox  # Navigateur web.
+        state: present  # Installe ces paquets si ils ne sont pas déjà présents sur la machine cible.
