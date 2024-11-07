@@ -1,0 +1,52 @@
+---
+- name: Réinstaller les drivers Nvidia et CUDA
+  hosts: serveurs
+  become: yes  # Utilise sudo pour les actions nécessitant des privilèges root
+  tasks:
+    # 1. Supprimer les drivers Nvidia existants
+    - name: Supprimer les pilotes Nvidia existants
+      apt:
+        name: nvidia-driver-535
+        state: absent
+
+    # 2. Ajouter le paquet CUDA
+    - name: Installer le paquet CUDA
+      apt:
+        name: nvidia-cuda-toolkit
+        state: present
+
+    # 3. Mettre à jour le cache des paquets
+    - name: Mettre à jour le cache APT
+      apt: 
+        update_cache: yes 
+
+    # 4. Réinstaller les drivers Nvidia
+    - name: Réinstaller les drivers Nvidia et CUDA
+      apt: 
+        name: nvidia-driver-550
+        state: latest
+
+    # 5. Vérifier l'installation des drivers Nvidia avec nvidia-smi
+    - name: Vérifier l'installation de Nvidia
+      command: nvidia-smi
+      register: nvidia_driver
+      ignore_errors: yes
+
+    - name: Vérifier l'installation des drivers 
+      debug: 
+        msg: "Les pilotes NVIDIA sont installés et fonctionnent correctement"
+      when: nvidia_driver.rc == 0
+
+    - name: Afficher un message d'erreur si les drivers NVIDIA ne sont pas trouvés
+      debug:
+        msg: "Nvidia-smi n'est pas installé ou la commande a échoué."
+      when: nvidia_driver.rc != 0
+
+    # Afficher la sortie de nvidia-smi
+    - name: Afficher la sortie de nvidia-smi
+      command: nvidia-smi
+      register: nvidia_output
+
+    - name: Afficher la sortie de nvidia-smi
+      debug:  # Affiche le contenu de nvidia_output.stdout qui contient la sortie standard de la commande
+        var: nvidia_output.stdout

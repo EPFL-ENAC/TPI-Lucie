@@ -1,0 +1,107 @@
+---
+- name: Installer Teams sur les machines
+  hosts: serveurs
+  become: yes #Utilise sudo pour les actions nécessitant des privilèges root
+  vars:
+   deb_file: "/home/lucie/src/tpi-lucie/livenavigatormodule-dkms_16_all.deb"  # Remplacez ce chemin par le chemin réel du fichier .deb sur la machine locale
+   remote_path: "/tmp/lina.deb"  # Chemin où le fichier sera copié sur le serveur cible
+
+  tasks: #les tâches que le playbook va éxecuter
+    - name: Mettre à jour les paquets
+      apt:
+        update_cache: yes
+
+#Teams
+    
+    - name: Installer les dépendances requises
+      apt:
+       name: 
+          - wget
+          - gpg
+       state: present
+
+    - name: Assurer que Snap est installé
+      package:
+        name: snapd
+        state: present
+
+    - name: Installer Teams avec Snap
+      snap:
+        name: teams-for-linux
+        state: present
+        
+
+#Cisco anyconnect
+    - name: Installer les dépendances requises
+      apt:
+        name:
+          - openconnect
+          - network-manager-openconnect
+          - network-manager-openconnect-gnome
+        state: present
+
+    - name: Copier le fichier d'installation de Cisco AnyConnect
+      copy:
+        src: /home/lucie/src/tpi-lucie/cisco-secure-client-linux64-5.1.5.65-core-vpn-webdeploy-k9.sh 
+        dest: /tmp/anyconnect-install.sh
+        mode: '0755'  # Rendre le fichier exécutable
+
+    - name: Exécuter le script d'installation de Cisco AnyConnect
+      command: /tmp/anyconnect-install.sh
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+   
+   #Atempo Lina
+    - name: Installer les dépendances requises
+      apt:
+        name:
+          - unzip
+          - wget
+          - gpg
+        state: present
+  
+    - name: Copier le fichier .deb sur le serveur cible
+      copy:
+        src: "{{ deb_file }}"
+        dest: "{{ remote_path }}"
+        mode: '0644'
+
+    - name: Installer le paquet Lina à partir du fichier .deb
+      command:
+        cmd: dpkg -i {{ remote_path }}
+
+    - name: Résoudre les dépendances manquantes
+      apt:
+        deb: "{{ remote_path }}"
+        state: present
+        update_cache: yes
+
+  #Enacdrive
+    - name: Ajout clef GPG
+      ansible.builtin.apt_key:
+        url: https://enacrepo.epfl.ch/enacrepo.asc
+        state: present
+
+    - name: Ajout du repo Enacdrive dans les sources apt
+      ansible.builtin.apt_repository: 
+        repo: deb http://enacrepo.epfl.ch/public focal main
+        state: present
+    
+    - name: Installation de Enacdrive
+      ansible.builtin.apt:
+        name: enacdrives    
+
+    
+  #Paquets Debian
+    - name: Installer les paquets de base
+      apt:
+        name:
+          - gparted
+          - vim
+          - unzip
+          - htop
+          - firefox
+        state: present
+
+
